@@ -213,6 +213,7 @@ class ParticleFilter(Node):
             return
 
         # TODO: modify particles using delta
+        self.current_odom_xy_theta = self.current_odom_xy_theta + delta
 
     def resample_particles(self):
         """ Resample the particles according to the new particle weights.
