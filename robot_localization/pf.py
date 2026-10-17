@@ -16,7 +16,7 @@ import math
 import time
 import numpy as np
 from occupancy_field import OccupancyField
-from helper_functions import TFHelper
+from helper_functions import TFHelper, draw_random_sample
 from rclpy.qos import qos_profile_sensor_data
 from angle_helpers import quaternion_from_euler
 
@@ -202,7 +202,6 @@ class ParticleFilter(Node):
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         # compute the change in x,y,theta since our last update
         if self.current_odom_xy_theta:
-            old_odom_xy_theta = self.current_odom_xy_theta
             delta = (new_odom_xy_theta[0] - self.current_odom_xy_theta[0],
                      new_odom_xy_theta[1] - self.current_odom_xy_theta[1],
                      new_odom_xy_theta[2] - self.current_odom_xy_theta[2])
@@ -224,6 +223,15 @@ class ParticleFilter(Node):
         # make sure the distribution is normalized
         self.normalize_particles()
         # TODO: fill out the rest of the implementation
+        choices = self.particle_cloud
+        probs = []
+        for p in self.particle_cloud:
+            probs.append(p.w)
+
+        self.particle_cloud = draw_random_sample(choices, probs, self.n_particles)
+
+        for p in self.particle_cloud:
+            p.w = 1/self.n_particles
 
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
@@ -248,6 +256,21 @@ class ParticleFilter(Node):
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
         # TODO create particles
+        rng = np.random.default_rng(seed=0)
+        std_x = 1
+        std_y = 1
+        std_theta = math.pi/6
+
+        noise_x = rng.normal(loc=0.0, scale=std_x, size=self.n_particles)
+        noise_y = rng.normal(loc=0.0, scale=std_y, size=self.n_particles)
+        noise_theta = rng.normal(loc=0.0, scale=std_theta, size=self.n_particles)
+
+        for i in range(self.n_particles):
+            x = xy_theta[0] + noise_x[i]
+            y = xy_theta[1] + noise_y[i]
+            theta = xy_theta[2] + noise_theta[i]
+            theta = math.atan2(math.sin(theta), math.cos(theta)) # bounds theta between -pi and pi
+            self.particle_cloud.append(Particle(x, y, theta, w = 1.0))
 
         self.normalize_particles()
         self.update_robot_pose()
@@ -255,7 +278,14 @@ class ParticleFilter(Node):
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
         # TODO: implement this
-        pass
+        total = 0
+        for p in self.particle_cloud:
+            total += p.w
+
+        for p in self.particle_cloud:
+            p.w = p.w/total
+
+        print(total)
 
     def publish_particles(self, timestamp):
         msg = ParticleCloud()
