@@ -202,6 +202,7 @@ class ParticleFilter(Node):
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         # compute the change in x,y,theta since our last update
         if self.current_odom_xy_theta:
+            old_odom_xy_theta = self.current_odom_xy_theta
             delta = (new_odom_xy_theta[0] - self.current_odom_xy_theta[0],
                      new_odom_xy_theta[1] - self.current_odom_xy_theta[1],
                      new_odom_xy_theta[2] - self.current_odom_xy_theta[2])
@@ -212,7 +213,15 @@ class ParticleFilter(Node):
             return
 
         # TODO: modify particles using delta
-        self.current_odom_xy_theta = self.current_odom_xy_theta + delta
+        old_theta = old_odom_xy_theta[2] # old odom heading
+        dist = math.sqrt(delta[0]**2 + delta[1]**2) # magnitude
+        direction = math.atan2(math.sin(old_odom_xy_theta[1], math.cos(old_odom_xy_theta[0]))) # compute angle from vector
+
+        # Modifying the actual particles
+        for p in self.particle_cloud:
+            p.x += dist * math.cos(p.theta + direction)
+            p.y += dist * math.sin(p.theta + direction)
+            p.theta += delta[2]
 
     def resample_particles(self):
         """ Resample the particles according to the new particle weights.
@@ -224,12 +233,14 @@ class ParticleFilter(Node):
         self.normalize_particles()
         # TODO: fill out the rest of the implementation
         choices = self.particle_cloud
+        # Setting the probability to the weight of each particle
         probs = []
         for p in self.particle_cloud:
             probs.append(p.w)
 
         self.particle_cloud = draw_random_sample(choices, probs, self.n_particles)
 
+        # Reset the particle probability
         for p in self.particle_cloud:
             p.w = 1/self.n_particles
 
