@@ -76,7 +76,7 @@ class ParticleFilter(Node):
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from 
 
-        self.n_particles = 300          # the number of particles to use
+        self.n_particles = 1000          # the number of particles to use
 
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
@@ -248,8 +248,20 @@ class ParticleFilter(Node):
 
         self.particle_cloud = draw_random_sample(choices, probs, self.n_particles)
 
-        # Reset the particle probability
+        rng = np.random.default_rng()
+        std_x = .05
+        std_y = .05
+        std_theta = math.pi/24
+
+        
         for p in self.particle_cloud:
+            #We started to add random noise in this step because our filter was collapsing to just one or two particles even though we started with a thousamd
+            noise_x = rng.normal(loc=0.0, scale=std_x)
+            noise_y = rng.normal(loc=0.0, scale=std_y)
+            noise_theta = rng.normal(loc=0.0, scale=std_theta)
+            p.x += noise_x
+            p.y += noise_y
+            p.theta += noise_theta
             p.w = 1/self.n_particles
 
     def update_particles_with_laser(self, r, theta):
@@ -257,17 +269,34 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-        closest = min(r)
-        errors = []
+        check1 = r[0]
+        if check1 > 100:
+            check1 = 10
+        if check1 < 0: 
+            check1 = 0
+        check1_theta = theta[0]
+        check2 = r[10]
+        if check2 > 100:
+            check2 = 10
+        if check2 < 0: 
+            check2 = 0
+        check2_theta = theta[10]
+        
         for p in self.particle_cloud:
             x = p.x
             y = p.y
-            c = self.occupancy_field.get_closest_obstacle_distance(x, y)
-            if math.isfinite(c):
-                error = abs(closest - c)
+            x1= x + check1*math.cos(check1_theta+p.theta)
+            y1 = y + check1*math.sin(check1_theta+p.theta)
+            c1 = self.occupancy_field.get_closest_obstacle_distance(x1, y1)
+            x2= x + check2*math.cos(check2_theta+p.theta)
+            y2 = y + check2*math.sin(check2_theta+p.theta)
+            c2 = self.occupancy_field.get_closest_obstacle_distance(x2, y2)
+            if math.isfinite(c1) and math.isfinite(c2):
+                error = abs(0 - c1 -c2)
                 p.w = 1e-6 + math.exp(-0.5 * (error / 0.25) ** 2)
             else:
                 p.w = 1e-6
+
 
         
         
@@ -287,9 +316,9 @@ class ParticleFilter(Node):
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
         # TODO create particles
-        rng = np.random.default_rng(seed=0)
-        std_x = 1
-        std_y = 1
+        rng = np.random.default_rng()
+        std_x = 2
+        std_y = 2
         std_theta = math.pi/6
 
         noise_x = rng.normal(loc=0.0, scale=std_x, size=self.n_particles)
