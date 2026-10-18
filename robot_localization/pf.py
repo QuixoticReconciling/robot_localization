@@ -186,7 +186,13 @@ class ParticleFilter(Node):
 
         # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
         # just to get started we will fix the robot's pose to always be at the origin
-        self.robot_pose = Pose()
+        new_x = sum(p.x*p.w for p in self.particle_cloud)# /self.n_particles
+        new_y = sum(p.y*p.w for p in self.particle_cloud)# /self.n_particles
+        new_theta_y = sum(math.sin(p.theta) * p.w for p in self.particle_cloud)  #/self.n_particles
+        new_theta_x = sum(math.cos(p.theta) * p.w for p in self.particle_cloud) #/self.n_particles <-- I realized it wasn't working bevause I was taking mean after weighting
+        new_theta = math.atan2(new_theta_y, new_theta_x)
+        new_particle = Particle(x=new_x, y = new_y, theta = new_theta, w=1.0)
+        self.robot_pose = new_particle.as_pose()
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
                                                             self.odom_pose)
@@ -211,16 +217,18 @@ class ParticleFilter(Node):
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
-
+        # note to self: here is what we know right now, we know how much odom says the x, y, and angle have changed 
+        # but the problem is to change the particles we need to know how much each change has happened relative to the robot
+        # because each particle must change by that much relative to itself, not relative to odom
         # TODO: modify particles using delta
-        old_theta = old_odom_xy_theta[2] # old odom heading
         dist = math.sqrt(delta[0]**2 + delta[1]**2) # magnitude
-        direction = math.atan2(math.sin(old_odom_xy_theta[1], math.cos(old_odom_xy_theta[0]))) # compute angle from vector
-
+        direction = math.atan2(delta[1], delta[0])
+        
         # Modifying the actual particles
-        for p in self.particle_cloud:
-            p.x += dist * math.cos(p.theta + direction)
-            p.y += dist * math.sin(p.theta + direction)
+        for p in self.particle_cloud: #the logic behind this update is going to be explained in a sketch we did that will be on the github, took us a while to get this
+            p_theta_diff = p.theta-old_odom_xy_theta[2]
+            p.x += dist * math.cos(direction+ p_theta_diff)
+            p.y += dist * math.sin(direction + p_theta_diff)
             p.theta += delta[2]
 
     def resample_particles(self):
