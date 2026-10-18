@@ -257,8 +257,20 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-        # TODO: implement this
-        pass
+        closest = min(r)
+        errors = []
+        for p in self.particle_cloud:
+            x = p.x
+            y = p.y
+            c = self.occupancy_field.get_closest_obstacle_distance(x, y)
+            if math.isfinite(c):
+                error = abs(closest - c)
+                p.w = 1e-6 + math.exp(-0.5 * (error / 0.25) ** 2)
+            else:
+                p.w = 1e-6
+
+        
+        
 
     def update_initial_pose(self, msg):
         """ Callback function to handle re-initializing the particle filter based on a pose estimate.
