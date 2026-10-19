@@ -339,11 +339,13 @@ class ParticleFilter(Node):
         noise_x = rng.normal(loc=0.0, scale=std_x, size=self.n_particles)
         noise_y = rng.normal(loc=0.0, scale=std_y, size=self.n_particles)
         noise_theta = rng.normal(loc=0.0, scale=std_theta, size=self.n_particles)
-
+        random_x = rng.normal(loc=0.0, scale=std_x, size=self.n_particles)
+        random_y = rng.normal(loc=0.0, scale=std_y, size=self.n_particles)
+        random_theta = rng.normal(loc=0.0, scale=std_theta, size=self.n_particles)
         for i in range(self.n_particles):
-            x = noise_x[i]
-            y = noise_y[i]
-            theta = noise_theta[i]
+            x = random_x[i] + noise_x[i]
+            y = random_y[i] + noise_y[i]
+            theta = random_theta[i] + noise_theta[i]
             theta = math.atan2(math.sin(theta), math.cos(theta)) # bounds theta between -pi and pi
             self.particle_cloud.append(Particle(x, y, theta, w = 1.0))
 
