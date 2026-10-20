@@ -1,30 +1,35 @@
-# Robot Localization Project Writeup
+# Running Instructions
 Prem Sethumadhavan and Trevor McDonald\
 October 20th, 2026
 
-Your write-up should touch on the following topics.
+Running the particle filter should be relatively simple. There are some pre-requisite files you must have.
+- Make sure pf.py, occupancy_field.py, helper_functions.py, and angle_helpers.py are in the robot_localization folder.
+- Have mac_1st_floor_final.yaml installed somewhere on your computer.
+- Have either the macfirst_floor_take_1 or macfirst_floor_take_2 bag installed.
+- Have the turtlebot_bag_files.rviz setup for rviz
 
-    What was the goal of your project?
-    How did you solve the problem? (Note: this doesn’t have to be super-detailed, you should try to explain what you did at a high-level so that others in the class could reasonably understand what you did).
-    Describe a design decision you had to make when working on your project and what you ultimately did (and why)? These design decisions could be particular choices for how you implemented some part of an algorithm or perhaps a decision regarding which of two external packages to use in your project.
-    Describe the tests that you implemented and conducted to verify your code, and their results.
-    What if any challenges did you face along the way?
-    What would you do to improve your project if you had more time?
-    Did you learn any interesting lessons for future robotic programming projects? These could relate to working on robotics projects in teams, working on more open-ended (and longer term) problems, or any other relevant topic.
-
-## 1. Project Overview
-The Robot Localization project answers the question "where is the robot in space?" To answer that question, there are a couple of steps to be accomplished. Given a known map, we initialize hundreds of particles and run a particle filtering algorithm. The algorithm takes input from the robots lidar sensor data and completes transformations using its odometry frame to generate another set of particles. Overtime, the guesses get better and better and we know the rough location of our robot in the given space.
-
-## 2. Code Architecture
-
-
-## 3. Design Decisions
-
-## 4. Testing & Verification
-
-## 5. Challenges, Improvements, & Lessons
-
-
+To run the particle filter, follow these steps.
+1. Use the command
+```
+ros2 launch robot_localization test_pf.py map_yaml:=path-to-your-yaml-file
+```
+If you're file system is set up the same way as ours, the path i
+```
+/home/trevor/ros2_ws/src/robot_localization/maps/mac_1st_floor_final.yaml
+```
+2. Open another terminal, and open rviz using the turtlebot configuration
+```
+rviz2 -d ~/ros2_ws/src/robot_localization/rviz/turtlebot_bag_files.rviz
+```
+3. Lastly, run the ros bag to see the particle filter in action.
+```
+ros2 bag play path-to-your-bag-file --clock 
+```
+use one of the following paths if you're file system is set up the same way as ours
+```
+/home/trevor/ros2_ws/src/robot_localization/bags/macfirst_floor_take_1
+/home/trevor/ros2_ws/src/robot_localization/bags/macfirst_floor_take_2
+```
 
 
 
