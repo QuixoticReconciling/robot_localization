@@ -263,84 +263,25 @@ class ParticleFilter(Node):
         assert len(r) == len(theta) == 720
         assert abs((theta[90] - theta[0]) - math.pi / 4) < 1.5 * math.pi / 180
 
-        check1, check1_theta = r[0], theta[0]
-        check2, check2_theta = r[90], theta[90]
-        check3, check3_theta = r[180], theta[180]
-        check4, check4_theta = r[270], theta[270]
-        check5, check5_theta = r[360], theta[360]
-        check6, check6_theta = r[450], theta[450]
-        check7, check7_theta = r[540], theta[540]
-        check8, check8_theta = r[630], theta[630]
+        checks = [r[0], r[90], r[180], r[270], r[360], r[450], r[540], r[630]]
+        check_thetas = [theta[0], theta[90], theta[180], theta[270],
+                        theta[360], theta[450], theta[540], theta[630]]
 
-        if check1 > 100:
-            check1 = 10
-        if check1 < 0:
-            check1 = 0
-        if check2 > 100:
-            check2 = 10
-        if check2 < 0:
-            check2 = 0
-        if check3 > 100:
-            check3 = 10
-        if check3 < 0:
-            check3 = 0
-        if check4 > 100:
-            check4 = 10
-        if check4 < 0:
-            check4 = 0
-        if check5 > 100:
-            check5 = 10
-        if check5 < 0:
-            check5 = 0
-        if check6 > 100:
-            check6 = 10
-        if check6 < 0:
-            check6 = 0
-        if check7 > 100:
-            check7 = 10
-        if check7 < 0:
-            check7 = 0
-        if check8 > 100:
-            check8 = 10
-        if check8 < 0:
-            check8 = 0
+        for i in range(8):
+            if checks[i] > 100:
+                checks[i] = 10
+            if checks[i] < 0:
+                checks[i] = 0
 
         for p in self.particle_cloud:
-            x1 = p.x + check1 * math.cos(check1_theta + p.theta)
-            y1 = p.y + check1 * math.sin(check1_theta + p.theta)
-            c1 = self.occupancy_field.get_closest_obstacle_distance(x1, y1)
+            closest_distances = []
+            for i in range(8):
+                x = p.x + checks[i] * math.cos(check_thetas[i] + p.theta)
+                y = p.y + checks[i] * math.sin(check_thetas[i] + p.theta)
+                closest_distances.append(self.occupancy_field.get_closest_obstacle_distance(x, y))
 
-            x2 = p.x + check2 * math.cos(check2_theta + p.theta)
-            y2 = p.y + check2 * math.sin(check2_theta + p.theta)
-            c2 = self.occupancy_field.get_closest_obstacle_distance(x2, y2)
-
-            x3 = p.x + check3 * math.cos(check3_theta + p.theta)
-            y3 = p.y + check3 * math.sin(check3_theta + p.theta)
-            c3 = self.occupancy_field.get_closest_obstacle_distance(x3, y3)
-
-            x4 = p.x + check4 * math.cos(check4_theta + p.theta)
-            y4 = p.y + check4 * math.sin(check4_theta + p.theta)
-            c4 = self.occupancy_field.get_closest_obstacle_distance(x4, y4)
-
-            x5 = p.x + check5 * math.cos(check5_theta + p.theta)
-            y5 = p.y + check5 * math.sin(check5_theta + p.theta)
-            c5 = self.occupancy_field.get_closest_obstacle_distance(x5, y5)
-
-            x6 = p.x + check6 * math.cos(check6_theta + p.theta)
-            y6 = p.y + check6 * math.sin(check6_theta + p.theta)
-            c6 = self.occupancy_field.get_closest_obstacle_distance(x6, y6)
-
-            x7 = p.x + check7 * math.cos(check7_theta + p.theta)
-            y7 = p.y + check7 * math.sin(check7_theta + p.theta)
-            c7 = self.occupancy_field.get_closest_obstacle_distance(x7, y7)
-
-            x8 = p.x + check8 * math.cos(check8_theta + p.theta)
-            y8 = p.y + check8 * math.sin(check8_theta + p.theta)
-            c8 = self.occupancy_field.get_closest_obstacle_distance(x8, y8)
-
-            if (math.isfinite(c1) and math.isfinite(c2) and math.isfinite(c3) and math.isfinite(c4)
-                    and math.isfinite(c5) and math.isfinite(c6) and math.isfinite(c7) and math.isfinite(c8)):
-                error = abs(0 - c1 - c2 - c3 - c4 - c5 - c6 - c7 - c8)
+            if all(math.isfinite(distance) for distance in closest_distances):
+                error = abs(0 - sum(closest_distances))
                 p.w = 1e-6 + math.exp(-0.5 * (error/.5) ** 2)
             else:
                 p.w = 1e-6
