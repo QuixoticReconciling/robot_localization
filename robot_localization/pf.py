@@ -182,12 +182,16 @@ class ParticleFilter(Node):
         # first make sure that the particle weights are normalized
         self.normalize_particles()
 
-        # just to get started we will fix the robot's pose to always be at the origin
+        #what the code below is going to do is for x and y is just weight the x, y contribution of particles by their weight attr then sum
+        #for theta it can't just weight and sum because angles wrap around, so we sum x, y components of sin, cos theta to get a vector
+        #then we find the angle of this vector through atan2
         new_x = sum(p.x*p.w for p in self.particle_cloud)# /self.n_particles
         new_y = sum(p.y*p.w for p in self.particle_cloud)# /self.n_particles
         new_theta_y = sum(math.sin(p.theta) * p.w for p in self.particle_cloud)  #/self.n_particles
         new_theta_x = sum(math.cos(p.theta) * p.w for p in self.particle_cloud) #/self.n_particles <-- I realized it wasn't working bevause I was taking mean after weighting
-        new_theta = math.atan2(new_theta_y, new_theta_x)
+        new_theta = math.atan2(new_theta_y, new_theta_x) #use atan2 to make sure it works outside of just q1 and q4
+        
+        #we make the new x, y, theta into a particle to get out a pose efficienty and assign it to the robot pose
         new_particle = Particle(x=new_x, y = new_y, theta = new_theta, w=1.0)
         self.robot_pose = new_particle.as_pose()
         if hasattr(self, 'odom_pose'):
@@ -203,7 +207,7 @@ class ParticleFilter(Node):
             when the particles were last updated and the current odometry.
         """
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
-        # compute the change in x,y,theta since our last update
+        # compute the change in x,y,theta since our last update. This is the displacement vector from our last state
         if self.current_odom_xy_theta:
             old_odom_xy_theta = self.current_odom_xy_theta
             delta = (new_odom_xy_theta[0] - self.current_odom_xy_theta[0],
@@ -212,11 +216,17 @@ class ParticleFilter(Node):
 
             self.current_odom_xy_theta = new_odom_xy_theta
         else:
+            #if we dont have a previous value the next previous value will become the new_pos we computed that we didn't use
             self.current_odom_xy_theta = new_odom_xy_theta
             return
         # note to self: here is what we know right now, we know how much odom says the x, y, and angle have changed 
         # but the problem is to change the particles we need to know how much each change has happened relative to the robot
         # because each particle must change by that much relative to itself, not relative to odom
+        
+        #we did a bunch of sketching to get the logic below: 
+        #we calculate the magnitude and direction of the displacement vector and then rotate it onto each particle
+        #this give us a vector in the odom frame that we can just add to the particle to translate it and then we just add 
+        #the change in theta onto it as well
         dist = math.sqrt(delta[0]**2 + delta[1]**2) # magnitude
         direction = math.atan2(delta[1], delta[0])
         
@@ -255,14 +265,15 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-        # This bag has 720 readings: 90 indices are approximately 45 degrees.
+        # This bag has 720 readings:
         assert len(r) == len(theta) == 720
         assert abs((theta[90] - theta[0]) - math.pi / 4) < 1.5 * math.pi / 180
-
+        #we pick these lidar readings because all of their angles are offset 45 degrees from one another
         checks = [r[0], r[90], r[180], r[270], r[360], r[450], r[540], r[630]]
         check_thetas = [theta[0], theta[90], theta[180], theta[270],
                         theta[360], theta[450], theta[540], theta[630]]
 
+        #we clean out lidar readings that go to posive infinity or negatiev infinity
         for i in range(8):
             if checks[i] > 100:
                 checks[i] = 10
@@ -272,12 +283,16 @@ class ParticleFilter(Node):
         for p in self.particle_cloud:
             closest_distances = []
             for i in range(8):
+                #for every lidar scan we add it onto the x y of the point and check for walls
                 x = p.x + checks[i] * math.cos(check_thetas[i] + p.theta)
                 y = p.y + checks[i] * math.sin(check_thetas[i] + p.theta)
                 closest_distances.append(self.occupancy_field.get_closest_obstacle_distance(x, y))
 
             if all(math.isfinite(distance) for distance in closest_distances):
+                #the error is the displacement from walls for each of the scans summed up, the perfect 
+                #particle will have an error of 0 because all lidar scans for each angle will be 0 dist from a wall
                 error = abs(0 - sum(closest_distances))
+                #we calculate a gaussian kernel so low scores get high weights and high scores get low weights
                 p.w = 1e-6 + math.exp(-0.5 * (error/.5) ** 2)
             else:
                 p.w = 1e-6
@@ -300,11 +315,16 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
+        #we cast a really wide net with large standard deviations for x, y theta because we are solving the kidnapped robot problem
+        #where we have no initial guess for the robot
         rng = np.random.default_rng()
         std_x = 10
         std_y = 10
         std_theta = math.pi
-
+        
+        #we need both noise and random positions for x, y, and theta
+        #if we just used random posiitons the mean would come back to 0, or if we just added noise to the initial position
+        #its mean would still be the initial position
         noise_x = rng.normal(loc=0.0, scale=std_x, size=self.n_particles)
         noise_y = rng.normal(loc=0.0, scale=std_y, size=self.n_particles)
         noise_theta = rng.normal(loc=0.0, scale=std_theta, size=self.n_particles)
@@ -324,9 +344,12 @@ class ParticleFilter(Node):
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
         total = 0
+        #keep a total sum of all the weight values
         for p in self.particle_cloud:
             total += p.w
         total_check = 0
+        #now normalize the weights by making them the percentage they make of the total weights
+        #also to check that all the weights = 1 after we sum up their values into total_check
         for p in self.particle_cloud:
             p.w = p.w/total
             total_check += p.w
