@@ -46,7 +46,6 @@ class Particle(object):
         return Pose(position=Point(x=self.x, y=self.y, z=0.0),
                     orientation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3]))
 
-    # TODO: define additional helper functions if needed
 
 class ParticleFilter(Node):
     """ The class that represents a Particle Filter ROS Node
@@ -81,7 +80,6 @@ class ParticleFilter(Node):
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
 
-        # TODO: define additional constants if needed
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(PoseWithCovarianceStamped, 'initialpose', self.update_initial_pose, 10)
@@ -184,7 +182,6 @@ class ParticleFilter(Node):
         # first make sure that the particle weights are normalized
         self.normalize_particles()
 
-        # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
         # just to get started we will fix the robot's pose to always be at the origin
         new_x = sum(p.x*p.w for p in self.particle_cloud)# /self.n_particles
         new_y = sum(p.y*p.w for p in self.particle_cloud)# /self.n_particles
@@ -220,7 +217,6 @@ class ParticleFilter(Node):
         # note to self: here is what we know right now, we know how much odom says the x, y, and angle have changed 
         # but the problem is to change the particles we need to know how much each change has happened relative to the robot
         # because each particle must change by that much relative to itself, not relative to odom
-        # TODO: modify particles using delta
         dist = math.sqrt(delta[0]**2 + delta[1]**2) # magnitude
         direction = math.atan2(delta[1], delta[0])
         
@@ -304,7 +300,6 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
-        # TODO create particles
         rng = np.random.default_rng()
         std_x = 10
         std_y = 10
@@ -328,7 +323,6 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-        # TODO: implement this
         total = 0
         for p in self.particle_cloud:
             total += p.w
