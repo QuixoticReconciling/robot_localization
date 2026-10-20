@@ -8,12 +8,13 @@ Running the particle filter should be relatively simple. There are some pre-requ
 - Have either the macfirst_floor_take_1 or macfirst_floor_take_2 bag installed.
 - Have the turtlebot_bag_files.rviz setup for rviz
 
-To run the particle filter, follow these steps.
+To run the replay
+
 1. Use the command
 ```
 ros2 launch robot_localization test_pf.py map_yaml:=path-to-your-yaml-file
 ```
-If you're file system is set up the same way as ours, the path i
+If you're file system is set up the same way as ours, the path is (But with your user's name)
 ```
 /home/trevor/ros2_ws/src/robot_localization/maps/mac_1st_floor_final.yaml
 ```
@@ -25,11 +26,7 @@ rviz2 -d ~/ros2_ws/src/robot_localization/rviz/turtlebot_bag_files.rviz
 ```
 ros2 bag play path-to-your-bag-file --clock 
 ```
-use one of the following paths if you're file system is set up the same way as ours
+Use one of the following paths if you're file system is set up the same way as ours (But with your user's name)
 ```
 /home/trevor/ros2_ws/src/robot_localization/bags/macfirst_floor_take_1
 /home/trevor/ros2_ws/src/robot_localization/bags/macfirst_floor_take_2
-```
-
-
-
