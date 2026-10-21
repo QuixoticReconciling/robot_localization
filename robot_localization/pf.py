@@ -174,10 +174,10 @@ class ParticleFilter(Node):
 
 
     def update_robot_pose(self):
-        """ Update the estimate of the robot's pose given the updated particles.
-            There are two logical methods for this:
-                (1): compute the mean pose
-                (2): compute the most likely pose (i.e. the mode of the distribution)
+        """ Updates the robot's pose estimate from the current particle cloud.
+            Normalizes the particle weighted mean of the particles to produce 
+            a single pose estimate. The pose is then stored and used with the 
+            odom pose to update the map.
         """
         # first make sure that the particle weights are normalized
         self.normalize_particles()
@@ -201,10 +201,13 @@ class ParticleFilter(Node):
             self.get_logger().warn("Can't set map->odom transform since no odom data received")
 
     def update_particles_with_odom(self):   
-        """ Update the particles using the newly given odometry pose.
+        """ Updates the particles using the newly given odometry pose.
             The function computes the value delta which is a tuple (x,y,theta)
             that indicates the change in position and angle between the odometry
-            when the particles were last updated and the current odometry.
+            when the particles were last updated and the current odometry. The
+            delta value is then used to calculate the magnitude and the direction of
+            the displacement vector. the displacement vector is used to update the
+            position of the actual particles.
         """
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         # compute the change in x,y,theta since our last update. This is the displacement vector from our last state
@@ -238,10 +241,12 @@ class ParticleFilter(Node):
             p.theta += delta[2]
 
     def resample_particles(self):
-        """ Resample the particles according to the new particle weights.
-            The weights stored with each particle should define the probability that a particular
-            particle is selected in the resampling step.  You may want to make use of the given helper
-            function draw_random_sample in helper_functions.py.
+        """ Resamples the particles according to the new particle weights.
+            This function first normalizes the particles so the weights sum
+            to one before taking the cumulative sum of the weights that divides
+            the range into n_particles slices. 'searchsorted' is used to find
+            which slice each new, randomly generated value falls into. Noise is
+            added to prevent particles from collapsing onto a single point.
         """
         # make sure the distribution is normalized
         self.normalize_particles()
@@ -261,9 +266,15 @@ class ParticleFilter(Node):
         ]
 
     def update_particles_with_laser(self, r, theta):
-        """ Updates the particle weights in response to the scan data
-            r: the distance readings to obstacles
-            theta: the angle relative to the robot frame for each corresponding reading 
+        """ Updates the particle weights in response to the scan data.
+            The function takes in the distance 'r' and heading 'theta'
+            of 8 different lidar scans. It takes the 'r' and 'theta'
+            values and moves the x and y position of the particle cloud
+            based on those values. It then uses the
+            'get_closest_obstacle_distance' function to find the closest
+            distance for any given particle. Those distances for each check
+            are added up into an error, then normalized based on all the
+            particle errors.
         """
         # This bag has 720 readings:
         assert len(r) == len(theta) == 720
@@ -309,9 +320,11 @@ class ParticleFilter(Node):
 
     def initialize_particle_cloud(self, timestamp, xy_theta=None):
         """ Initialize the particle cloud.
-            Arguments
-            xy_theta: a triple consisting of the mean x, y, and theta (yaw) to initialize the
-                      particle cloud around.  If this input is omitted, the odometry will be used """
+            This function creates a particle cloud using a normal 
+            distribution centered around 0. The standard deviation
+            for x and y is 10m and for theta it's pi radians or 180
+            degrees.
+        """
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
@@ -342,7 +355,7 @@ class ParticleFilter(Node):
         self.update_robot_pose()
 
     def normalize_particles(self):
-        """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
+        """ Normalizes the particle weights so they all sum to one. """
         total = 0
         #keep a total sum of all the weight values
         for p in self.particle_cloud:
